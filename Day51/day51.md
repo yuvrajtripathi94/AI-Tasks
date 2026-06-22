@@ -1,22 +1,16 @@
-# Day 52 - Performance Optimisation for Production AI Systems
+# Day 51 - Handle Edge Cases and Build Failure Resilience
 
 ## Objective
 
-Optimize the AI product for lower latency and reduced operational cost while maintaining output quality above the Day 50 evaluation baseline.
+Improve the robustness of the AI product by identifying, categorizing, and handling edge cases that can occur in real-world usage.
 
 ---
 
 ## Focus Area
 
-**Production Performance Optimization**
+**Robustness Engineering**
 
-Production AI systems must balance three critical factors:
-
-* Speed
-* Cost
-* Quality
-
-The goal was to identify bottlenecks, implement optimizations, and validate that system performance improved without sacrificing answer quality.
+Production AI systems must gracefully handle unexpected inputs, API failures, malformed requests, and user mistakes without crashing or producing unusable responses.
 
 ---
 
@@ -25,165 +19,190 @@ The goal was to identify bottlenecks, implement optimizations, and validate that
 * Python
 * FastAPI
 * OpenAI API
-* Redis
 
 ---
 
 ## Problem Statement
 
-A production AI system becomes expensive and difficult to scale when:
+Real users often submit inputs that differ significantly from expected behavior.
 
-* Response times are high
-* API costs increase with usage
-* Duplicate requests trigger unnecessary LLM calls
+Examples:
 
-The objective was to measure current performance and implement optimizations.
+* Empty questions
+* Extremely long inputs
+* Invalid document uploads
+* Ambiguous requests
+* Unsupported file formats
+* API failures
+* Network interruptions
 
----
-
-## Baseline Metrics
-
-### Before Optimization
-
-| Metric               | Value   |
-| -------------------- | ------- |
-| Average Latency      | 4.8 sec |
-| Average Cost/Request | $0.010  |
-| Cache Hit Rate       | 0%      |
-| Evaluation Score     | 88%     |
+The objective was to ensure every failure path returns a meaningful response instead of a crash.
 
 ---
 
-## Optimizations Implemented
+## Edge Cases Identified
 
-### 1. Redis Response Caching
+### Input Validation
 
-Implemented Redis caching for repeated queries.
+* Empty prompts
+* Whitespace-only inputs
+* Excessively long queries
+* Special character spam
 
-Benefits:
+### Document Processing
 
-* Reduced duplicate LLM requests
-* Faster responses
-* Lower API cost
+* Empty files
+* Corrupted documents
+* Unsupported file formats
+* Very large uploads
+
+### Retrieval System
+
+* No relevant documents found
+* Low-confidence retrieval
+* Missing embeddings
+* Empty vector store
+
+### LLM Failures
+
+* API timeout
+* Rate limiting
+* Invalid API response
+* Service unavailability
+
+### User Behavior
+
+* Repeated requests
+* Nonsensical questions
+* Off-topic prompts
+* Mixed-language inputs
+
+---
+
+## Failure Handling Workflow
+
+```text
+User Request
+      ↓
+Input Validation
+      ↓
+Document Validation
+      ↓
+Retrieval Layer
+      ↓
+LLM Processing
+      ↓
+Error Detection
+      ↓
+Fallback Response
+      ↓
+User-Friendly Output
+```
+
+---
+
+## Sample Validation Logic
+
+```python
+def validate_query(query):
+    if not query.strip():
+        return "Please enter a valid question."
+
+    if len(query) > 5000:
+        return "Query exceeds allowed length."
+
+    return None
+```
+
+---
+
+## Resilience Improvements
+
+### Graceful Error Messages
+
+Before:
+
+```text
+500 Internal Server Error
+```
+
+After:
+
+```text
+Unable to process your request at the moment.
+Please try again shortly.
+```
+
+---
+
+### API Retry Mechanism
+
+Implemented automatic retries for temporary OpenAI API failures.
+
+### Timeout Protection
+
+Added request timeout limits to prevent hanging responses.
+
+### Fallback Responses
+
+Provided helpful guidance when retrieval fails.
 
 Example:
 
-```python
-cache_key = f"query:{question}"
-
-cached = redis_client.get(cache_key)
-
-if cached:
-    return cached
-```
-
----
-
-### 2. Context Size Reduction
-
-Optimized retrieval pipeline by:
-
-* Reducing retrieved chunks
-* Trimming unnecessary context
-* Sending smaller prompts to the LLM
-
-Benefits:
-
-* Lower token usage
-* Reduced latency
-* Lower cost
-
----
-
-### 3. Async FastAPI Endpoints
-
-Converted synchronous routes to asynchronous routes.
-
-Benefits:
-
-* Better concurrency
-* Improved throughput
-* Reduced waiting time
-
----
-
-## Workflow
-
 ```text
-User Query
-      ↓
-Redis Cache Check
-      ↓
-Cache Hit?
- ┌───────────┐
- │ Yes       │
- │ Return    │
- └───────────┘
-      ↓ No
-Vector Search
-      ↓
-Prompt Construction
-      ↓
-OpenAI API
-      ↓
-Cache Response
-      ↓
-Return Result
+I couldn't find relevant information in the uploaded documents.
+Try rephrasing your question.
 ```
 
 ---
 
-## Results After Optimization
+## Testing Performed
 
-| Metric           | Before | After  |
-| ---------------- | ------ | ------ |
-| Latency          | 4.8s   | 1.9s   |
-| Cost/Request     | $0.010 | $0.004 |
-| Cache Hit Rate   | 0%     | 47%    |
-| Evaluation Score | 88%    | 89%    |
+### Test Cases
 
----
+✅ Empty Input
 
-## Quality Validation
+✅ Large Input
 
-Used Day 50 evaluation suite to verify:
+✅ Corrupted File
 
-* Accuracy maintained
-* Retrieval quality preserved
-* Hallucination rate unchanged
-* Response relevance stable
+✅ Unsupported File Type
 
-Result:
+✅ Retrieval Failure
 
-✅ No measurable quality degradation
+✅ API Timeout
+
+✅ API Rate Limit
+
+✅ Invalid Response
 
 ---
 
 ## Key Learnings
 
-* Caching provides immediate performance gains.
-* Smaller prompts reduce both latency and cost.
-* Performance optimization should always be measured.
-* Quality evaluation must accompany every optimization.
-* Cost savings compound significantly at scale.
+* Edge cases occur more frequently than expected.
+* Failure handling is as important as core functionality.
+* Helpful error messages improve user trust.
+* Validation should happen before expensive operations.
+* Robust systems fail gracefully.
 
 ---
 
 ## Challenges Faced
 
-* Balancing speed and answer quality
-* Selecting cache expiration policies
-* Measuring optimization impact accurately
-* Preventing stale cached responses
+* Anticipating unexpected user behavior
+* Designing meaningful fallback responses
+* Handling external API failures
+* Preventing cascading system errors
 
 ---
 
 ## Outcome
 
-Successfully reduced latency and cost while maintaining evaluation performance above the baseline.
+Successfully improved system reliability by handling multiple edge cases and ensuring graceful recovery from failures.
 
 ---
 
 ## Conclusion
 
-Production AI engineering is not only about model quality. Real-world success depends on delivering fast, cost-effective, and reliable user experiences at scale.
+Production AI systems are judged not only by how well they work when everything is perfect, but by how well they behave when things go wrong.
